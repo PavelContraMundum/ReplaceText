@@ -148,13 +148,12 @@ namespace ReplaceText
                         string newText = GetDefpoznText(xmlDoc, odkaz);
                         if (!string.IsNullOrEmpty(newText))
                         {
-                            line = ReplaceTextWithTags(line, startIndex, endIndex, newText, "f");
+                            line = ReplaceTextWithTags(line, startIndex, endIndex, newText, "\\f");
                             modified = true;
                         }
                     }
                 }
             }
-
             return line;
         }
 
@@ -172,13 +171,12 @@ namespace ReplaceText
                         string newText = GetDefpoznoText(xmlDoc, odkaz);
                         if (!string.IsNullOrEmpty(newText))
                         {
-                            line = ReplaceTextWithTags(line, startIndex, endIndex, newText, "fo");
+                            line = ReplaceTextWithTags(line, startIndex, endIndex, newText, "\\fo");
                             modified = true;
                         }
                     }
                 }
             }
-
             return line;
         }
 
@@ -211,7 +209,7 @@ namespace ReplaceText
         private static string ReplaceTextWithTags(string line, int startIndex, int endIndex, string newText, string tag)
         {
             string sample = line.Substring(startIndex, endIndex - startIndex);
-            string modified = line.Replace(sample, $"/{tag}{newText}/{tag}*");
+            string modified = line.Replace(sample, $"{tag}{newText}{tag}*");
             return modified;
         }
     }
