@@ -1,0 +1,15 @@
+D:\GitLab\XaveriusCloud\Projekty\ReplaceText\ReplaceText\bin\Debug\ReplaceText.exe.config
+D:\GitLab\XaveriusCloud\Projekty\ReplaceText\ReplaceText\bin\Debug\ReplaceText.exe
+D:\GitLab\XaveriusCloud\Projekty\ReplaceText\ReplaceText\bin\Debug\ReplaceText.pdb
+D:\GitLab\XaveriusCloud\Projekty\ReplaceText\ReplaceText\obj\Debug\ReplaceText.csproj.AssemblyReference.cache
+D:\GitLab\XaveriusCloud\Projekty\ReplaceText\ReplaceText\obj\Debug\ReplaceText.csproj.SuggestedBindingRedirects.cache
+D:\GitLab\XaveriusCloud\Projekty\ReplaceText\ReplaceText\obj\Debug\ReplaceText.csproj.CoreCompileInputs.cache
+D:\GitLab\XaveriusCloud\Projekty\ReplaceText\ReplaceText\obj\Debug\ReplaceText.exe
+D:\GitLab\XaveriusCloud\Projekty\ReplaceText\ReplaceText\obj\Debug\ReplaceText.pdb
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\ReplaceText.exe.config
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\ReplaceText.exe
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\ReplaceText.pdb
+D:\Programming\CSharp\ReplaceText\ReplaceText\obj\Debug\ReplaceText.csproj.AssemblyReference.cache
+D:\Programming\CSharp\ReplaceText\ReplaceText\obj\Debug\ReplaceText.csproj.CoreCompileInputs.cache
+D:\Programming\CSharp\ReplaceText\ReplaceText\obj\Debug\ReplaceText.exe
+D:\Programming\CSharp\ReplaceText\ReplaceText\obj\Debug\ReplaceText.pdb
