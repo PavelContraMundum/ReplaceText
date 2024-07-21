@@ -13,3 +13,14 @@ D:\Programming\CSharp\ReplaceText\ReplaceText\obj\Debug\ReplaceText.csproj.Assem
 D:\Programming\CSharp\ReplaceText\ReplaceText\obj\Debug\ReplaceText.csproj.CoreCompileInputs.cache
 D:\Programming\CSharp\ReplaceText\ReplaceText\obj\Debug\ReplaceText.exe
 D:\Programming\CSharp\ReplaceText\ReplaceText\obj\Debug\ReplaceText.pdb
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Buffers.dll
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Memory.dll
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Numerics.Vectors.dll
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Runtime.CompilerServices.Unsafe.dll
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Text.Encoding.CodePages.dll
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Buffers.xml
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Memory.xml
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Numerics.Vectors.xml
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Runtime.CompilerServices.Unsafe.xml
+D:\Programming\CSharp\ReplaceText\ReplaceText\bin\Debug\System.Text.Encoding.CodePages.xml
+D:\Programming\CSharp\ReplaceText\ReplaceText\obj\Debug\ReplaceText.csproj.CopyComplete

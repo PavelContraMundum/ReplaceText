@@ -10,38 +10,130 @@ namespace ReplaceText
     {
         static void Main(string[] args)
         {
-            string inputFilePath = "D:\\Downloads\\Studijni Bible\\Studijni_Bible\\GenMod.xml";
-            string outputFilePath = "D:\\Downloads\\GenModified.txt";
-
             try
             {
-                ProcessFile(inputFilePath, outputFilePath);
+                // Registrujeme dodatečné kódovací stránky
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+                string inputFilePath = GetFilePath("Zadejte cestu k vstupnímu XML souboru: ");
+                string outputFilePath = GetFilePath("Zadejte cestu k výstupnímu souboru: ");
+
+                if (!File.Exists(inputFilePath))
+                {
+                    throw new FileNotFoundException("Vstupní soubor nebyl nalezen.", inputFilePath);
+                }
+
+                Encoding encoding = DetectEncodingRobust(inputFilePath);
+                Console.WriteLine($"Detekované kódování: {encoding.EncodingName}");
+
+                // Použijeme CP1250, pokud je to specifikováno v souboru
+                if (encoding.EncodingName != "Windows-1250" && encoding.EncodingName != "Central European (Windows)")
+                {
+                    Console.WriteLine("Přepínám na Windows-1250 kódování...");
+                    encoding = Encoding.GetEncoding(1250);
+                }
+
+                ProcessFile(inputFilePath, outputFilePath, encoding);
+
+                Console.WriteLine("Zpracování dokončeno.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred: {ex.Message}");
+                Console.WriteLine($"Došlo k chybě: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            }
+            finally
+            {
+                Console.WriteLine("Stiskněte libovolnou klávesu pro ukončení...");
+                Console.ReadKey();
             }
         }
 
-        private static void ProcessFile(string inputFilePath, string outputFilePath)
+        private static string GetFilePath(string prompt)
         {
-            bool startWriting = false;
+            Console.Write(prompt);
+            return Console.ReadLine().Trim();
+        }
+
+        private static Encoding DetectEncodingRobust(string filePath)
+        {
+            var encodingsToTry = new[]
+            {
+                Encoding.GetEncoding(1250),  // Windows-1250
+                Encoding.UTF8,
+                Encoding.GetEncoding(852),   // IBM852
+                Encoding.GetEncoding(28592)  // ISO-8859-2
+            };
+
+            foreach (var encoding in encodingsToTry)
+            {
+                try
+                {
+                    using (var reader = new StreamReader(filePath, encoding, true))
+                    {
+                        string firstLine = reader.ReadLine();
+                        if (firstLine != null && firstLine.Contains("<?xml"))
+                        {
+                            Match match = Regex.Match(firstLine, @"encoding=[""'](.+?)[""']");
+                            if (match.Success)
+                            {
+                                string encodingName = match.Groups[1].Value;
+                                try
+                                {
+                                    return Encoding.GetEncoding(encodingName);
+                                }
+                                catch
+                                {
+                                    // Pokud selže, pokračujeme dalším kódováním
+                                }
+                            }
+                            return encoding; // Vrátíme kódování, které úspěšně přečetlo XML hlavičku
+                        }
+                    }
+                }
+                catch
+                {
+                    // Pokud selže, zkusíme další kódování
+                }
+            }
+
+            // Pokud všechno selže, vrátíme Windows-1250
+            Console.WriteLine("Nepodařilo se detekovat kódování. Použije se Windows-1250.");
+            return Encoding.GetEncoding(1250);
+        }
+
+        private static void ProcessFile(string inputFilePath, string outputFilePath, Encoding encoding)
+        {
+            Console.WriteLine("Začínám zpracování souboru...");
             var output = new StringBuilder();
 
-            using (var reader = new StreamReader(inputFilePath, Encoding.UTF8))
+            using (var reader = new StreamReader(inputFilePath, encoding))
             {
                 XmlDocument xmlDoc = new XmlDocument();
-                xmlDoc.Load(inputFilePath);
+                xmlDoc.Load(reader);
+
+                // Reset StreamReader na začátek souboru
+                reader.BaseStream.Position = 0;
+                reader.DiscardBufferedData();
 
                 string line;
+                bool startRecording = false;
+
                 while ((line = reader.ReadLine()) != null)
                 {
-                    if (!startWriting && line.Contains("<titulek>"))
+                    // Přeskočíme XML deklaraci a DOCTYPE
+                    if (line.StartsWith("<?xml") || line.StartsWith("<!DOCTYPE"))
                     {
-                        startWriting = true;
+                        continue;
                     }
 
-                    if (startWriting)
+                    if (line.Contains("<titulek>"))
+                    {
+                        Console.WriteLine("Nalezen tag <titulek> - začínám zaznamenávat.");
+                        startRecording = true;
+                    }
+
+                    if (startRecording)
                     {
                         line = ProcessLine(line, xmlDoc);
                         output.AppendLine(line);
@@ -49,89 +141,69 @@ namespace ReplaceText
                 }
             }
 
-            // Odstranění posledního tagu </kniha>
             string finalOutput = output.ToString().TrimEnd();
-            int lastBookTagIndex = finalOutput.LastIndexOf("</kniha>");
-            if (lastBookTagIndex != -1)
+
+            // Odebrání tagu </kniha> na konci
+            if (finalOutput.EndsWith("</kniha>"))
             {
-                finalOutput = finalOutput.Substring(0, lastBookTagIndex);
+                finalOutput = finalOutput.Substring(0, finalOutput.Length - "</kniha>".Length).TrimEnd();
             }
 
             if (string.IsNullOrWhiteSpace(finalOutput))
             {
-                Console.WriteLine("Warning: No content was processed. The output file will be empty.");
+                Console.WriteLine("Varování: Nebyl zpracován žádný obsah. Výstupní soubor bude prázdný.");
             }
             else
             {
                 try
                 {
-                    //  File.WriteAllText(outputFilePath, finalOutput);
+                    File.WriteAllText(outputFilePath, finalOutput, encoding);
 
+                    Console.WriteLine($"Výstup byl úspěšně zapsán do: {outputFilePath}");
+                    Console.WriteLine($"Délka výsledného obsahu: {finalOutput.Length} znaků");
+                    Console.WriteLine($"Použité kódování: {encoding.EncodingName}");
 
-                    using (StreamWriter writer = new StreamWriter(outputFilePath, false, Encoding.UTF8))
-                    {
-                        writer.Write(finalOutput);
-                    }
-
-                    File.WriteAllText(outputFilePath, finalOutput);
-                    Console.WriteLine("Waiting for 5 seconds...");
-                    System.Threading.Thread.Sleep(5000);  // Počká 5 sekund
-                    if (File.Exists(outputFilePath))
-                    {
-                        string contentAfterWait = File.ReadAllText(outputFilePath);
-                        Console.WriteLine($"File content after 5 seconds: {contentAfterWait.Substring(0, Math.Min(100, contentAfterWait.Length))}");
-                    }
-                 //   string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                 //   string newOutputFilePath = Path.Combine(desktopPath, "GenModified.txt");
-                   
-                //    File.WriteAllText(newOutputFilePath, finalOutput);
-
-                    Console.WriteLine($"Attempting to write {finalOutput.Length} characters to file.");
-
-                    // Ověření, zda byl soubor skutečně vytvořen a obsahuje data
-                    if (File.Exists(outputFilePath))
-                    {
-                        long fileSize = new FileInfo(outputFilePath).Length;
-                        Console.WriteLine($"File created. File size: {fileSize} bytes");
-
-                        if (fileSize > 0)
-                        {
-                            Console.WriteLine($"Output successfully written to: {outputFilePath}");
-                            Console.WriteLine($"Final content length: {finalOutput.Length} characters");
-
-                            string fileContent = File.ReadAllText(outputFilePath);
-                            Console.WriteLine($"First 100 characters of file content: {fileContent.Substring(0, Math.Min(100, fileContent.Length))}");
-                            //Console.ReadLine(); 
-                        }
-                        else
-                        {
-                            Console.WriteLine("Warning: File was created but is empty.");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Error: File was not created.");
-                    }
+                    string fileContent = File.ReadAllText(outputFilePath, encoding);
+                    Console.WriteLine($"Prvních 100 znaků obsahu souboru: {fileContent.Substring(0, Math.Min(100, fileContent.Length))}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error writing to file: {ex.Message}");
-                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                    Console.WriteLine($"Chyba při zápisu do souboru: {ex.Message}");
+                    throw;
                 }
             }
         }
 
         private static string ProcessLine(string line, XmlDocument xmlDoc)
         {
-            bool modified;
-            do
+            if (line.Contains("<defpozno") || line.Contains("<defpozn"))
             {
-                modified = false;
-                line = ReplaceOdkaz(line, xmlDoc, ref modified);
-                line = ReplaceOdkazo(line, xmlDoc, ref modified);
-            } while (modified);
+                line = ProcessDefpozn(line, "defpozno", "\\fo");
+                line = ProcessDefpozn(line, "defpozn", "\\f");
+            }
+            else
+            {
+                bool modified;
+                do
+                {
+                    modified = false;
+                    line = ReplaceOdkaz(line, xmlDoc, ref modified);
+                    line = ReplaceOdkazo(line, xmlDoc, ref modified);
+                } while (modified);
+            }
 
             return line;
+        }
+
+        private static string ProcessDefpozn(string line, string tagName, string replaceTag)
+        {
+            string pattern = $@"<{tagName} n=""(.+?)"">(.*?)</{tagName}>";
+            return Regex.Replace(line, pattern, match =>
+            {
+                string n = match.Groups[1].Value;
+                string content = match.Groups[2].Value;
+                return $"{replaceTag}{content}{replaceTag}*";
+            });
         }
 
         private static string ReplaceOdkaz(string line, XmlDocument xmlDoc, ref bool modified)
