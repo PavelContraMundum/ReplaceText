@@ -33,7 +33,7 @@ namespace ReplaceText
                     encoding = Encoding.GetEncoding(1250);
                 }
 
-                ProcessFile(inputFilePath, outputFilePath, encoding);
+                ProcessFile(inputFilePath, outputFilePath, encoding); 
 
                 Console.WriteLine("Zpracování dokončeno.");
             }
@@ -102,12 +102,12 @@ namespace ReplaceText
             return Encoding.GetEncoding(1250);
         }
 
-        private static void ProcessFile(string inputFilePath, string outputFilePath, Encoding encoding)
+        private static void ProcessFile(string inputFilePath, string outputFilePath, Encoding inputEncoding)
         {
             Console.WriteLine("Začínám zpracování souboru...");
             var output = new StringBuilder();
 
-            using (var reader = new StreamReader(inputFilePath, encoding))
+            using (var reader = new StreamReader(inputFilePath, inputEncoding))
             {
                 XmlDocument xmlDoc = new XmlDocument();
                 xmlDoc.Load(reader);
@@ -143,7 +143,6 @@ namespace ReplaceText
 
             string finalOutput = output.ToString().TrimEnd();
 
-           
             if (finalOutput.EndsWith("</kniha>"))
             {
                 finalOutput = finalOutput.Substring(0, finalOutput.Length - "</kniha>".Length).TrimEnd();
@@ -157,13 +156,14 @@ namespace ReplaceText
             {
                 try
                 {
-                    File.WriteAllText(outputFilePath, finalOutput, encoding);
+                    // Zde změníme kódování na UTF-8
+                    File.WriteAllText(outputFilePath, finalOutput, Encoding.UTF8);
 
                     Console.WriteLine($"Výstup byl úspěšně zapsán do: {outputFilePath}");
                     Console.WriteLine($"Délka výsledného obsahu: {finalOutput.Length} znaků");
-                    Console.WriteLine($"Použité kódování: {encoding.EncodingName}");
+                    Console.WriteLine("Použité kódování: UTF-8");
 
-                    string fileContent = File.ReadAllText(outputFilePath, encoding);
+                    string fileContent = File.ReadAllText(outputFilePath, Encoding.UTF8);
                     Console.WriteLine($"Prvních 100 znaků obsahu souboru: {fileContent.Substring(0, Math.Min(100, fileContent.Length))}");
                 }
                 catch (Exception ex)
