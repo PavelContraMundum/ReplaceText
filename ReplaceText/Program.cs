@@ -12,7 +12,7 @@ namespace ReplaceText
         {
             try
             {
-                // Registrujeme dodatečné kódovací stránky
+                
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
                 string inputFilePath = GetFilePath("Zadejte cestu k vstupnímu XML souboru: ");
@@ -26,7 +26,7 @@ namespace ReplaceText
                 Encoding encoding = DetectEncodingRobust(inputFilePath);
                 Console.WriteLine($"Detekované kódování: {encoding.EncodingName}");
 
-                // Použijeme CP1250, pokud je to specifikováno v souboru
+               
                 if (encoding.EncodingName != "Windows-1250" && encoding.EncodingName != "Central European (Windows)")
                 {
                     Console.WriteLine("Přepínám na Windows-1250 kódování...");
@@ -84,20 +84,20 @@ namespace ReplaceText
                                 }
                                 catch
                                 {
-                                    // Pokud selže, pokračujeme dalším kódováním
+                                    // Pokud selže, pokračuje dalším kódováním
                                 }
                             }
-                            return encoding; // Vrátíme kódování, které úspěšně přečetlo XML hlavičku
+                            return encoding; // Vrátí, které úspěšně přečetlo XML hlavičku
                         }
                     }
                 }
                 catch
                 {
-                    // Pokud selže, zkusíme další kódování
+                    // Pokud selže, zkusí další kódování
                 }
             }
 
-            // Pokud všechno selže, vrátíme Windows-1250
+            // Pokud všechno selže, vrátí Windows-1250
             Console.WriteLine("Nepodařilo se detekovat kódování. Použije se Windows-1250.");
             return Encoding.GetEncoding(1250);
         }
@@ -121,7 +121,7 @@ namespace ReplaceText
 
                 while ((line = reader.ReadLine()) != null)
                 {
-                    // Přeskočíme XML deklaraci a DOCTYPE
+                    // Přeskočí XML deklaraci a DOCTYPE
                     if (line.StartsWith("<?xml") || line.StartsWith("<!DOCTYPE"))
                     {
                         continue;
@@ -143,7 +143,7 @@ namespace ReplaceText
 
             string finalOutput = output.ToString().TrimEnd();
 
-            // Odebrání tagu </kniha> na konci
+           
             if (finalOutput.EndsWith("</kniha>"))
             {
                 finalOutput = finalOutput.Substring(0, finalOutput.Length - "</kniha>".Length).TrimEnd();
