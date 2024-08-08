@@ -2,7 +2,6 @@
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Xml;
 
 namespace ReplaceText
 {
@@ -12,7 +11,6 @@ namespace ReplaceText
         {
             try
             {
-                
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
                 string inputFilePath = GetFilePath("Zadejte cestu k vstupnímu XML souboru: ");
@@ -26,14 +24,13 @@ namespace ReplaceText
                 Encoding encoding = DetectEncodingRobust(inputFilePath);
                 Console.WriteLine($"Detekované kódování: {encoding.EncodingName}");
 
-               
                 if (encoding.EncodingName != "Windows-1250" && encoding.EncodingName != "Central European (Windows)")
                 {
                     Console.WriteLine("Přepínám na Windows-1250 kódování...");
                     encoding = Encoding.GetEncoding(1250);
                 }
 
-                ProcessFile(inputFilePath, outputFilePath, encoding); 
+                ProcessFile(inputFilePath, outputFilePath, encoding);
 
                 Console.WriteLine("Zpracování dokončeno.");
             }
@@ -107,37 +104,22 @@ namespace ReplaceText
             Console.WriteLine("Začínám zpracování souboru...");
             var output = new StringBuilder();
 
-            using (var reader = new StreamReader(inputFilePath, inputEncoding))
+            string[] lines = File.ReadAllLines(inputFilePath, inputEncoding);
+
+            bool startRecording = false;
+
+            foreach (var line in lines)
             {
-                XmlDocument xmlDoc = new XmlDocument();
-                xmlDoc.Load(reader);
-
-                // Reset StreamReader na začátek souboru
-                reader.BaseStream.Position = 0;
-                reader.DiscardBufferedData();
-
-                string line;
-                bool startRecording = false;
-
-                while ((line = reader.ReadLine()) != null)
+                if (line.Contains("<titulek>"))
                 {
-                    // Přeskočí XML deklaraci a DOCTYPE
-                    if (line.StartsWith("<?xml") || line.StartsWith("<!DOCTYPE"))
-                    {
-                        continue;
-                    }
+                    Console.WriteLine("Nalezen tag <titulek> - začínám zaznamenávat.");
+                    startRecording = true;
+                }
 
-                    if (line.Contains("<titulek>"))
-                    {
-                        Console.WriteLine("Nalezen tag <titulek> - začínám zaznamenávat.");
-                        startRecording = true;
-                    }
-
-                    if (startRecording)
-                    {
-                        line = ProcessLine(line, xmlDoc);
-                        output.AppendLine(line);
-                    }
+                if (startRecording)
+                {
+                    var processedLine = ProcessLine(line);
+                    output.AppendLine(processedLine);
                 }
             }
 
@@ -156,7 +138,7 @@ namespace ReplaceText
             {
                 try
                 {
-                    // Zde změníme kódování na UTF-8
+                    // Změní kódování na UTF-8
                     File.WriteAllText(outputFilePath, finalOutput, Encoding.UTF8);
 
                     Console.WriteLine($"Výstup byl úspěšně zapsán do: {outputFilePath}");
@@ -174,115 +156,29 @@ namespace ReplaceText
             }
         }
 
-        private static string ProcessLine(string line, XmlDocument xmlDoc)
+        private static string ProcessLine(string line)
         {
-            if (line.Contains("<defpozno") || line.Contains("<defpozn"))
+            // Vytvoří regex, který najde všechny <odkazo> nebo <odkaz> a nahradí je textem bez změny struktury XML
+            string pattern = @"<odkazo n=""(?<odkazo>.*?)""/>|<odkaz n=""(?<odkaz>.*?)""/>";
+            line = Regex.Replace(line, pattern, match =>
             {
-                line = ProcessDefpozn(line, "defpozno", "\\fo");
-                line = ProcessDefpozn(line, "defpozn", "\\f");
-            }
-            else
-            {
-                bool modified;
-                do
+                string odkazValue = match.Groups["odkaz"].Success ? match.Groups["odkaz"].Value : null;
+                string odkazoValue = match.Groups["odkazo"].Success ? match.Groups["odkazo"].Value : null;
+
+                if (!string.IsNullOrEmpty(odkazoValue))
                 {
-                    modified = false;
-                    line = ReplaceOdkaz(line, xmlDoc, ref modified);
-                    line = ReplaceOdkazo(line, xmlDoc, ref modified);
-                } while (modified);
-            }
+                    return "\\fo" + odkazoValue + "\\fo*";
+                }
 
-            return line;
-        }
+                if (!string.IsNullOrEmpty(odkazValue))
+                {
+                    return "\\f" + odkazValue + "\\f*";
+                }
 
-        private static string ProcessDefpozn(string line, string tagName, string replaceTag)
-        {
-            string pattern = $@"<{tagName} n=""(.+?)"">(.*?)</{tagName}>";
-            return Regex.Replace(line, pattern, match =>
-            {
-                string n = match.Groups[1].Value;
-                string content = match.Groups[2].Value;
-                return $"{replaceTag}{content}{replaceTag}*";
+                return match.Value;
             });
-        }
 
-        private static string ReplaceOdkaz(string line, XmlDocument xmlDoc, ref bool modified)
-        {
-            int startIndex = line.IndexOf("<odkaz n=\"");
-            if (startIndex != -1)
-            {
-                int endIndex = FindEndIndex(line, startIndex);
-                if (endIndex != -1)
-                {
-                    string odkaz = ExtractOdkazValue(line, startIndex);
-                    if (!string.IsNullOrEmpty(odkaz))
-                    {
-                        string newText = GetDefpoznText(xmlDoc, odkaz);
-                        if (!string.IsNullOrEmpty(newText))
-                        {
-                            line = ReplaceTextWithTags(line, startIndex, endIndex, newText, "\\f");
-                            modified = true;
-                        }
-                    }
-                }
-            }
             return line;
-        }
-
-        private static string ReplaceOdkazo(string line, XmlDocument xmlDoc, ref bool modified)
-        {
-            int startIndex = line.IndexOf("<odkazo n=\"");
-            if (startIndex != -1)
-            {
-                int endIndex = FindEndIndex(line, startIndex);
-                if (endIndex != -1)
-                {
-                    string odkaz = ExtractOdkazValue(line, startIndex);
-                    if (!string.IsNullOrEmpty(odkaz))
-                    {
-                        string newText = GetDefpoznoText(xmlDoc, odkaz);
-                        if (!string.IsNullOrEmpty(newText))
-                        {
-                            line = ReplaceTextWithTags(line, startIndex, endIndex, newText, "\\fo");
-                            modified = true;
-                        }
-                    }
-                }
-            }
-            return line;
-        }
-
-        private static int FindEndIndex(string line, int startIndex)
-        {
-            Regex r = new Regex("\"/>");
-            Match m = r.Match(line, startIndex);
-            return m.Success ? m.Index + m.Length : -1;
-        }
-
-        private static string ExtractOdkazValue(string line, int startIndex)
-        {
-            int startQuote = line.IndexOf('"', startIndex) + 1;
-            int endQuote = line.IndexOf('"', startQuote);
-            return endQuote > startQuote ? line.Substring(startQuote, endQuote - startQuote) : null;
-        }
-
-        private static string GetDefpoznText(XmlDocument xmlDoc, string odkaz)
-        {
-            XmlNode defpoznNode = xmlDoc.SelectSingleNode($"//defpozn[@n='{odkaz}']");
-            return defpoznNode?.InnerXml;
-        }
-
-        private static string GetDefpoznoText(XmlDocument xmlDoc, string odkaz)
-        {
-            XmlNode defpoznoNode = xmlDoc.SelectSingleNode($"//defpozno[@n='{odkaz}']");
-            return defpoznoNode?.InnerXml;
-        }
-
-        private static string ReplaceTextWithTags(string line, int startIndex, int endIndex, string newText, string tag)
-        {
-            string sample = line.Substring(startIndex, endIndex - startIndex);
-            string modified = line.Replace(sample, $"{tag}{newText}{tag}*");
-            return modified;
         }
     }
 }
