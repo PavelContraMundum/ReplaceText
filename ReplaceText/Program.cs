@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -21,16 +22,16 @@ namespace ReplaceText
                     throw new FileNotFoundException("Vstupní soubor nebyl nalezen.", inputFilePath);
                 }
 
-                Encoding encoding = DetectEncodingRobust(inputFilePath);
-                Console.WriteLine($"Detekované kódování: {encoding.EncodingName}");
+                Encoding cp1250Encoding = Encoding.GetEncoding(1250);
+                Encoding utf8Encoding = Encoding.UTF8;
 
-                if (encoding.EncodingName != "Windows-1250" && encoding.EncodingName != "Central European (Windows)")
-                {
-                    Console.WriteLine("Přepínám na Windows-1250 kódování...");
-                    encoding = Encoding.GetEncoding(1250);
-                }
+                // Převod souboru na UTF-8 při čtení
+                string fileContent = File.ReadAllText(inputFilePath, cp1250Encoding);
 
-                ProcessFile(inputFilePath, outputFilePath, encoding);
+                Console.WriteLine("Převádím obsah souboru na UTF-8...");
+
+                // Zpracování obsahu souboru
+                ProcessFile(fileContent, outputFilePath, utf8Encoding);
 
                 Console.WriteLine("Zpracování dokončeno.");
             }
@@ -52,133 +53,105 @@ namespace ReplaceText
             return Console.ReadLine().Trim();
         }
 
-        private static Encoding DetectEncodingRobust(string filePath)
-        {
-            var encodingsToTry = new[]
-            {
-                Encoding.GetEncoding(1250),  // Windows-1250
-                Encoding.UTF8,
-                Encoding.GetEncoding(852),   // IBM852
-                Encoding.GetEncoding(28592)  // ISO-8859-2
-            };
-
-            foreach (var encoding in encodingsToTry)
-            {
-                try
-                {
-                    using (var reader = new StreamReader(filePath, encoding, true))
-                    {
-                        string firstLine = reader.ReadLine();
-                        if (firstLine != null && firstLine.Contains("<?xml"))
-                        {
-                            Match match = Regex.Match(firstLine, @"encoding=[""'](.+?)[""']");
-                            if (match.Success)
-                            {
-                                string encodingName = match.Groups[1].Value;
-                                try
-                                {
-                                    return Encoding.GetEncoding(encodingName);
-                                }
-                                catch
-                                {
-                                    // Pokud selže, pokračuje dalším kódováním
-                                }
-                            }
-                            return encoding; // Vrátí, které úspěšně přečetlo XML hlavičku
-                        }
-                    }
-                }
-                catch
-                {
-                    // Pokud selže, zkusí další kódování
-                }
-            }
-
-            // Pokud všechno selže, vrátí Windows-1250
-            Console.WriteLine("Nepodařilo se detekovat kódování. Použije se Windows-1250.");
-            return Encoding.GetEncoding(1250);
-        }
-
-        private static void ProcessFile(string inputFilePath, string outputFilePath, Encoding inputEncoding)
+        private static void ProcessFile(string fileContent, string outputFilePath, Encoding encoding)
         {
             Console.WriteLine("Začínám zpracování souboru...");
-            var output = new StringBuilder();
 
-            string[] lines = File.ReadAllLines(inputFilePath, inputEncoding);
+            var defpoznDictionary = new Dictionary<string, string>();
+            var defpoznoDictionary = new Dictionary<string, string>();
 
-            bool startRecording = false;
+            // Uložíme všechny poznámky
+            StoreAllDefpozn(fileContent, defpoznDictionary);
+            StoreAllDefpozno(fileContent, defpoznoDictionary);
 
-            foreach (var line in lines)
+            // Najdeme začátek obsahu (od <titulek>)
+            int startIndex = fileContent.IndexOf("<titulek>");
+            if (startIndex == -1)
             {
-                if (line.Contains("<titulek>"))
-                {
-                    Console.WriteLine("Nalezen tag <titulek> - začínám zaznamenávat.");
-                    startRecording = true;
-                }
-
-                if (startRecording)
-                {
-                    var processedLine = ProcessLine(line);
-                    output.AppendLine(processedLine);
-                }
+                throw new Exception("Tag <titulek> nebyl nalezen.");
             }
 
-            string finalOutput = output.ToString().TrimEnd();
+            // Zpracujeme celý obsah najednou
+            string processedContent = ProcessContent(fileContent.Substring(startIndex), defpoznDictionary, defpoznoDictionary);
 
-            if (finalOutput.EndsWith("</kniha>"))
+            // Zapíšeme zpracovaný obsah do výstupního souboru v UTF-8 kódování
+            File.WriteAllText(outputFilePath, processedContent, encoding);
+
+            Console.WriteLine($"Výstup byl úspěšně zapsán do: {outputFilePath}");
+        }
+
+        private static void StoreAllDefpozn(string content, Dictionary<string, string> defpoznDictionary)
+        {
+            string pattern = @"<defpozn n=""(.+?)"">(.*?)</defpozn>";
+            foreach (Match match in Regex.Matches(content, pattern, RegexOptions.Singleline))
             {
-                finalOutput = finalOutput.Substring(0, finalOutput.Length - "</kniha>".Length).TrimEnd();
-            }
-
-            if (string.IsNullOrWhiteSpace(finalOutput))
-            {
-                Console.WriteLine("Varování: Nebyl zpracován žádný obsah. Výstupní soubor bude prázdný.");
-            }
-            else
-            {
-                try
-                {
-                    // Změní kódování na UTF-8
-                    File.WriteAllText(outputFilePath, finalOutput, Encoding.UTF8);
-
-                    Console.WriteLine($"Výstup byl úspěšně zapsán do: {outputFilePath}");
-                    Console.WriteLine($"Délka výsledného obsahu: {finalOutput.Length} znaků");
-                    Console.WriteLine("Použité kódování: UTF-8");
-
-                    string fileContent = File.ReadAllText(outputFilePath, Encoding.UTF8);
-                    Console.WriteLine($"Prvních 100 znaků obsahu souboru: {fileContent.Substring(0, Math.Min(100, fileContent.Length))}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Chyba při zápisu do souboru: {ex.Message}");
-                    throw;
-                }
+                string n = match.Groups[1].Value;
+                string poznContent = match.Groups[2].Value;
+                defpoznDictionary[n] = poznContent;
             }
         }
 
-        private static string ProcessLine(string line)
+        private static void StoreAllDefpozno(string content, Dictionary<string, string> defpoznoDictionary)
         {
-            // Vytvoří regex, který najde všechny <odkazo> nebo <odkaz> a nahradí je textem bez změny struktury XML
-            string pattern = @"<odkazo n=""(?<odkazo>.*?)""/>|<odkaz n=""(?<odkaz>.*?)""/>";
-            line = Regex.Replace(line, pattern, match =>
+            string pattern = @"<defpozno n=""(.+?)"">(.*?)</defpozno>";
+            foreach (Match match in Regex.Matches(content, pattern, RegexOptions.Singleline))
             {
-                string odkazValue = match.Groups["odkaz"].Success ? match.Groups["odkaz"].Value : null;
-                string odkazoValue = match.Groups["odkazo"].Success ? match.Groups["odkazo"].Value : null;
+                string n = match.Groups[1].Value;
+                string poznContent = match.Groups[2].Value;
+                defpoznoDictionary[n] = poznContent;
+            }
+        }
 
-                if (!string.IsNullOrEmpty(odkazoValue))
+        private static string ProcessContent(string content, Dictionary<string, string> defpoznDictionary, Dictionary<string, string> defpoznoDictionary)
+        {
+            bool modified;
+            do
+            {
+                modified = false;
+                var result = ReplaceOdkaz(content, defpoznDictionary);
+                content = result.Item1;
+                modified |= result.Item2;
+
+                result = ReplaceOdkazo(content, defpoznoDictionary);
+                content = result.Item1;
+                modified |= result.Item2;
+            } while (modified);
+
+            return content;
+        }
+
+        private static (string, bool) ReplaceOdkaz(string content, Dictionary<string, string> defpoznDictionary)
+        {
+            bool modified = false;
+            string pattern = @"<odkaz n=""(.+?)""/>";
+            string result = Regex.Replace(content, pattern, match =>
+            {
+                string n = match.Groups[1].Value;
+                if (defpoznDictionary.TryGetValue(n, out string poznContent))
                 {
-                    return "\\fo" + odkazoValue + "\\fo*";
+                    modified = true;
+                    return $"\\f{poznContent}\\f*";
                 }
-
-                if (!string.IsNullOrEmpty(odkazValue))
-                {
-                    return "\\f" + odkazValue + "\\f*";
-                }
-
                 return match.Value;
             });
+            return (result, modified);
+        }
 
-            return line;
+        private static (string, bool) ReplaceOdkazo(string content, Dictionary<string, string> defpoznoDictionary)
+        {
+            bool modified = false;
+            string pattern = @"<odkazo n=""(.+?)""/>";
+            string result = Regex.Replace(content, pattern, match =>
+            {
+                string n = match.Groups[1].Value;
+                if (defpoznoDictionary.TryGetValue(n, out string poznContent))
+                {
+                    modified = true;
+                    return $"\\fo{poznContent}\\fo*";
+                }
+                return match.Value;
+            });
+            return (result, modified);
         }
     }
 }
