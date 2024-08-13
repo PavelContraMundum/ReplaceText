@@ -60,21 +60,21 @@ namespace ReplaceText
             var defpoznDictionary = new Dictionary<string, string>();
             var defpoznoDictionary = new Dictionary<string, string>();
 
-            // Uložíme všechny poznámky
+            // Uloží všechny poznámky
             StoreAllDefpozn(fileContent, defpoznDictionary);
             StoreAllDefpozno(fileContent, defpoznoDictionary);
 
-            // Najdeme začátek obsahu (od <titulek>)
+            // Najde začátek obsahu (od <titulek>)
             int startIndex = fileContent.IndexOf("<titulek>");
             if (startIndex == -1)
             {
                 throw new Exception("Tag <titulek> nebyl nalezen.");
             }
 
-            // Zpracujeme celý obsah najednou
+            // Zpracuje celý obsah najednou
             string processedContent = ProcessContent(fileContent.Substring(startIndex), defpoznDictionary, defpoznoDictionary);
 
-            // Zapíšeme zpracovaný obsah do výstupního souboru v UTF-8 kódování
+            // Zapíše zpracovaný obsah do výstupního souboru v UTF-8 kódování
             File.WriteAllText(outputFilePath, processedContent, encoding);
 
             Console.WriteLine($"Výstup byl úspěšně zapsán do: {outputFilePath}");
