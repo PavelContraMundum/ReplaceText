@@ -123,14 +123,17 @@ namespace ReplaceText
         private static (string, bool) ReplaceOdkaz(string content, Dictionary<string, string> defpoznDictionary)
         {
             bool modified = false;
-            string pattern = @"<odkaz n=""(.+?)""/>";
+            string pattern = @"<odkaz n=""(.)(\d+)""/>";
             string result = Regex.Replace(content, pattern, match =>
             {
-                string n = match.Groups[1].Value;
-                if (defpoznDictionary.TryGetValue(n, out string poznContent))
+                string letter = match.Groups[1].Value;
+                string n = match.Groups[2].Value;
+                string fullKey = letter + n;
+
+                if (defpoznDictionary.TryGetValue(fullKey, out string poznContent))
                 {
                     modified = true;
-                    return $"\\f{poznContent}\\f*";
+                    return $"\\sup {letter}\\sup*\\f{poznContent}\\f*";
                 }
                 return match.Value;
             });
@@ -140,14 +143,17 @@ namespace ReplaceText
         private static (string, bool) ReplaceOdkazo(string content, Dictionary<string, string> defpoznoDictionary)
         {
             bool modified = false;
-            string pattern = @"<odkazo n=""(.+?)""/>";
+            string pattern = @"<odkazo n=""(.)(\d+)""/>";
             string result = Regex.Replace(content, pattern, match =>
             {
-                string n = match.Groups[1].Value;
-                if (defpoznoDictionary.TryGetValue(n, out string poznContent))
+                string letter = match.Groups[1].Value;
+                string n = match.Groups[2].Value;
+                string fullKey = letter + n;
+
+                if (defpoznoDictionary.TryGetValue(fullKey, out string poznContent))
                 {
                     modified = true;
-                    return $"\\fo{poznContent}\\fo*";
+                    return $"\\sup {letter}\\sup*\\fo{poznContent}\\fo*";
                 }
                 return match.Value;
             });
